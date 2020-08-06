@@ -1,23 +1,24 @@
-from operator import itemgetter
-
 import numpy as np
 
 
 class KDTree(object):
+
     def __init__(self, values):
         # flatten elements, for next split data and build kdNode
-        self.values = np.array([element.flatten() for element in np.array(values)])
-        self.max_split_dim = np.shape(values)[1]
-        self.root_node = self.build_node(self.values, None, 0)
+        # 为每一个item添加index信息，方便后面对item进行查找的时候定位到在原始数组中的位置
+        flatten_values = np.array([element.flatten() for element in np.array(values)])
+        self.index_values = list(enumerate(flatten_values))
+
+        self.max_split_dim = np.shape(flatten_values)[-1]
+        self.root_node = self.build_node(self.index_values, None, 0)
 
     def build_node(self, values, parent_node, depth):
         if len(values) == 0:
             return None
         medium_index = len(values) // 2
         axis = depth % self.max_split_dim
-        values_sort = sorted(values, key=itemgetter(axis))
+        values_sort = sorted(values, key=ContainsIndexItemgetter(axis))
         node_value = values_sort[medium_index]
-
         node = KDNode(node_value, axis, depth)
         node.parent_node = parent_node
         node.left_node = self.build_node(values_sort[:medium_index], node, depth + 1)
@@ -25,7 +26,19 @@ class KDTree(object):
         return node
 
     def __str__(self):
-        return str(self.root_node)
+        return "KdTree->rootNode=\n" + str(self.root_node)
+
+
+class ContainsIndexItemgetter(object):
+    """
+    这个排序的的key对应的类的目的是为了让排序后的item同时包含有在原始的数组中的位置信息
+    """
+
+    def __init__(self, axis):
+        self.axis = axis
+
+    def __call__(self, item):
+        return item[1][self.axis]
 
 
 class KDNode(object):
@@ -47,9 +60,9 @@ class KDNode(object):
         str_child_padding = " " * self.depth * 2
         self_str = "{}(axis={})".format(self.value, self.axis)
         if self.left_node:
-            self_str += "\n  {}|_ Left : {}".format(str_child_padding, self.left_node)
+            self_str += "\n  {}|- Left : {}".format(str_child_padding, self.left_node)
         if self.right_node:
-            self_str += "\n  {}|_ Right : {}".format(str_child_padding, self.right_node)
+            self_str += "\n  {}|- Right : {}".format(str_child_padding, self.right_node)
         return self_str
 
     def is_leaf(self):
